@@ -31,7 +31,7 @@ function Header({ me }) {
   return (
     <header className="sticky top-0 z-10 bg-white border-b border-gray-100">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-        <a href="/"><h1 className="m-0 text-xl font-semibold text-gray-900">Bloom Cosmetics</h1></a>
+        <a href="/"><h1 className="m-0 text-xl font-semibold text-gray-900">nanorecipe</h1></a>
         <nav className="flex gap-4 text-gray-700 items-center">
           <a href="/" className="hover:text-gray-900">Home</a>
           <a href="/cart" className="hover:text-gray-900">Cart</a>
