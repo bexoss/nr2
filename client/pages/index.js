@@ -60,11 +60,11 @@ export default function Home() {
                 <Image src={p.image} alt={p.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" />
               </div>
               <div className="p-3">
-                <h4 className="font-semibold mb-1">{p.name}</h4>
+                <a href={`/shop/${encodeURIComponent(p.id)}`} className="hover:underline"><h4 className="font-semibold mb-1">{p.name}</h4></a>
                 <p className="text-sm text-gray-600 mb-2">{p.description}</p>
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">{format(p.price)}</span>
-                  <button className="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-900 text-white" onClick={() => addToCart(p)}>Add to Cart</button>
+                  <button className="inline-flex items-center px-3 py-1.5 rounded-md bg-gray-900 text-white" onClick={() => addToCartUnified(p)}>Add to Cart</button>
                 </div>
               </div>
             </article>
@@ -109,8 +109,43 @@ async function addToCart(product) {
       body: JSON.stringify({ items }),
     });
     if (!saveRes.ok) throw new Error('Failed to save cart');
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated'));
     alert('장바구니에 담았습니다.');
   } catch (e) {
     alert('장바구니 담기 실패: ' + e.message);
+  }
+}
+
+// Anonymous-friendly cart adder used by UI
+async function addToCartUnified(product) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  try {
+    if (!token) {
+      const anon = JSON.parse(localStorage.getItem('anon_cart') || '{"items": []}');
+      const items = Array.isArray(anon.items) ? anon.items : [];
+      const idx = items.findIndex((it) => it.productId === product.id);
+      if (idx >= 0) items[idx] = { ...items[idx], qty: (items[idx].qty || 1) + 1 };
+      else items.push({ productId: product.id, name: product.name, price: product.price, qty: 1 });
+      localStorage.setItem('anon_cart', JSON.stringify({ items }));
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated'));
+      return;
+    }
+    const cartRes = await fetch('http://localhost:4000/api/cart', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const current = cartRes.ok ? await cartRes.json() : { items: [] };
+    const items = [...(current.items || [])];
+    const idx = items.findIndex((it) => it.productId === product.id);
+    if (idx >= 0) items[idx] = { ...items[idx], qty: (items[idx].qty || 1) + 1 };
+    else items.push({ productId: product.id, name: product.name, price: product.price, qty: 1 });
+    const saveRes = await fetch('http://localhost:4000/api/cart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ items }),
+    });
+    if (!saveRes.ok) throw new Error('Failed to save cart');
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated'));
+  } catch (e) {
+    alert('장바구니 저장 실패: ' + e.message);
   }
 }

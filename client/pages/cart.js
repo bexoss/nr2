@@ -18,10 +18,17 @@ export default function CartPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
-    if (!token) return setStatus('Please login first.');
-    fetch('http://localhost:4000/api/cart', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    if (!token) {
+      try {
+        const anon = JSON.parse(localStorage.getItem('anon_cart') || '{"items": []}');
+        setItems(Array.isArray(anon.items) ? anon.items : []);
+        setStatus('');
+      } catch (e) {
+        setItems([]);
+      }
+      return;
+    }
+    fetch('http://localhost:4000/api/cart', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => setItems(data.items || []))
       .catch((e) => setStatus(String(e)));
@@ -34,7 +41,12 @@ export default function CartPage() {
 
   async function save() {
     const token = localStorage.getItem('auth_token');
-    if (!token) return setStatus('Please login first.');
+    if (!token) {
+      localStorage.setItem('anon_cart', JSON.stringify({ items }));
+      setStatus('Saved');
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated'));
+      return;
+    }
     setStatus('Saving...');
     const res = await fetch('http://localhost:4000/api/cart', {
       method: 'POST',
@@ -42,7 +54,7 @@ export default function CartPage() {
       body: JSON.stringify({ items }),
     });
     if (!res.ok) setStatus('Save failed');
-    else setStatus('Saved');
+    else { setStatus('Saved'); if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated')); }
   }
 
   async function checkout() {
@@ -58,6 +70,7 @@ export default function CartPage() {
     else {
       setItems([]);
       setStatus('Order placed!');
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart:updated'));
     }
   }
 

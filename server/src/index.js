@@ -184,6 +184,18 @@ async function start() {
     console.warn('Product seed skipped:', e?.message || e);
   }
 
+  // Admin endpoint to seed demo cosmetics products on demand
+  app.post('/api/admin/seed-products', requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const count = await Product.countDocuments();
+      if (count > 0) return res.json({ ok: true, skipped: true, reason: 'Products already exist' });
+      await Product.insertMany(seedProducts);
+      return res.json({ ok: true, seeded: seedProducts.length });
+    } catch (e) {
+      return res.status(500).json({ error: e?.message || 'Seed failed' });
+    }
+  });
+
   // JWT helpers
   function signToken(user) {
     return jwt.sign(
@@ -342,6 +354,22 @@ async function start() {
     const docs = await Product.find({ active: true }).sort({ createdAt: -1 }).lean();
     const list = docs.map((p) => ({ id: p.sku, name: p.name, price: p.price, image: p.image, description: p.description }));
     res.json(list);
+  });
+
+  // Product detail (public)
+  app.get('/api/products/:sku', async (req, res) => {
+    const { sku } = req.params;
+    const p = await Product.findOne({ sku, active: true }).lean();
+    if (!p) return res.status(404).json({ error: 'Not found' });
+    res.json({
+      id: p.sku,
+      name: p.name,
+      price: p.price,
+      image: p.image,
+      description: p.description,
+      shippingFee: p.shippingFee ?? 0,
+      maxQtyPerUser: p.maxQtyPerUser ?? 0,
+    });
   });
 
   // Admin APIs
